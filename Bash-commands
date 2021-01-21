@@ -1,0 +1,5 @@
+## A place to put miscellaneous bash commands
+
+#Kraken2 with GTDB database classification
+#Needs GTDB database to be present
+for F in *.fasta; do kraken2 --db /data/databases/gtdb_r89_54k_kraken2_full_wick/ --report ${F/fasta/kraken2.report} $F > ${F/fasta/kraken2.results}; done
