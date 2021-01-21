@@ -1,0 +1,16 @@
+### A file to place miscellaneous R commands
+
+
+##To get classified read counts from the dataframe
+library(tidyverse)
+
+#Check this imports zotus not otus
+files<-list.files(path="./",pattern="*taxa_counts.txt")
+taxa_dataframe<-lapply(files,read.delim, header=FALSE)
+names(taxa_dataframe)<-files 
+
+#Dataframes
+taxa_dataframe<-lapply(taxa_dataframe, setNames, paste0(c("OTU", "Read_Count", "Kingdom", "Phylum", "Class", "Order", "Genus")))
+Reads_dataframe<-lapply(taxa_dataframe,function(y) {y %>% group_by(Genus) %>% summarise(Read_Count=sum(Read_Count))})
+Reads_total<-lapply(taxa_dataframe, function(z) sum(z$Read_Count))
+
