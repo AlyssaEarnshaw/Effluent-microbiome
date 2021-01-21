@@ -1,0 +1,250 @@
+######################################################################
+### The input for this Snakefile is a fastq file of reads from
+### an Illumina sequencing run - in folders
+###
+### Need to have usearch in the directory and the database to align to
+### Need to have merge_lines.py in the directory
+### Need to have a config file with the names of the samples
+### OR have a directory set up as sample.read-output
+### Need to have the rdp database downloaded
+###
+### It can be swapped to do either OTUs or zOTUs 
+### Switch all of the OTU to zOTU or back
+###
+### There are 14 steps:
+### Merge the fastq files
+### Quality filter
+### Get unique sequences
+### Cluster OTUs
+### Align to a reference database
+###
+### Attach usearch OTU numbers to OTU alignments
+### This makes a taxtable file which can later be used in graphs to show species density
+###
+### Use merge_lines.py to create a csv
+### Get read counts in an OTU
+### Make it into a better format
+###
+### 28 September Alyssa
+#######################################################################
+
+shell.executable("/bin/bash")
+
+#SAMPLE, = glob_wildcards("./{sample}.read-output") 
+configfile:
+    "Illuminafile_config.yml"
+
+rule all:
+    input:
+#        expand("il-fastq/{sample}_joined.fastqjoin", sample=config["SAMPLE"]),
+        expand("il-fastq/{sample}_joined.fastq", sample=config["SAMPLE"]),
+        expand("results/{sample}.filtered.fasta", sample=config["SAMPLE"]),
+        expand("results/{sample}.unique.fasta", sample=config["SAMPLE"]),
+        expand("results/{sample}.zotus.fasta", sample=config["SAMPLE"]),
+        expand("results/{sample}.zotutable.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.zotumap.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.otualign.aln", sample=config["SAMPLE"]),
+        expand("results/{sample}.otunumber.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.queryoutput.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.taxtable.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.csv", sample=config["SAMPLE"]),
+        expand("results/{sample}_counts.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}_counts.sorted.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.sorted.taxtable.txt", sample=config["SAMPLE"]),
+        expand("results/{sample}.taxa_counts.txt", sample=config["SAMPLE"]),
+
+#        expand("results/{sample}.otutable.txt", sample=config["SAMPLE"]),
+#        expand("results/{sample}.map.txt", sample=config["SAMPLE"]),
+#        expand("results/{sample}.clustered.fasta", sample=config["SAMPLE"]),
+#        expand("results/{sample}.sintax_tabbed.txt", sample=config["SAMPLE"]),
+#        expand("results/{sample}.sinstax_summary.txt", sample=config["SAMPLE"]),
+
+#Rule merge needs to be run as a stand-alone command outside the snakemake. 
+#rule merge:
+#    input:
+#        r1="il-fastq/{sample}_R1.fastq",
+#        r2="il-fastq/{sample}_R2.fastq"
+#    output:
+#        "il-fastq/{sample}_joined.fastqjoin"
+#    params:
+#        "il-fastq/{sample}_joined.fastq"
+#    log:
+#        "logs/{sample}.merged.log"
+#    shell:
+#        "fastq-join {input.r1} {input.r2} -o {params}"
+
+rule name:
+    input:
+        "il-fastq/{sample}_joined.fastqjoin"
+    output:
+        "il-fastq/{sample}_joined.fastq"
+    shell:
+        "mv {input} {output}"
+
+rule filter:
+    input:
+        "il-fastq/{sample}_joined.fastq"
+    output:
+        "results/{sample}.filtered.fasta"
+    log:
+        "logs/{sample}.filtered.log"
+    shell:
+        "usearch -fastq_filter {input} -fastq_maxee 1.0 -fastaout {output}"
+
+rule find_uniques:
+    input:
+        "results/{sample}.filtered.fasta"
+   output:
+        "results/{sample}.unique.fasta"
+    log:
+        "logs/{sample}.unique.log"
+    shell:
+        "usearch -fastx_uniques {input} -fastaout {output} -sizeout -relabel Uniq"
+
+#rule cluster_otus:
+#    input:
+#        "results/{sample}.unique.fasta"
+#    output:
+#        "results/{sample}.clustered.fasta"
+#    log:
+#        "logs/{sample}.clustered.log"
+#    shell:
+#        "usearch -cluster_otus {input} -otus {output} -relabel Otu"
+
+rule zotus:
+    input:
+        "results/{sample}.unique.fasta"
+    output:
+        "results/{sample}.zotus.fasta"
+    log:
+        "logs/{sample}.zotus.log"
+    shell:
+        "usearch -unoise3 {input} -zotus {output}"
+
+#rule make_otu_table:
+#    input:
+#        r1="il-fastq/{sample}_merged.fastq",
+#        r2="results/{sample}.clustered.fasta"
+#    output:
+#        o1="results/{sample}.otutable.txt",
+#        o2="results/{sample}.map.txt"
+#    log:
+#        "logs/{sample}.otutable.log"
+#    shell:
+#        "usearch -otutab {input.r1} -otus {input.r2} -otutabout {output.o1} -mapout {output.o2}"
+
+rule make_zotu_table:
+    input:
+        r1="il-fastq/{sample}_joined.fastq",
+        r2="results/{sample}.zotus.fasta"
+    output:
+        o1="results/{sample}.zotutable.txt",
+        o2="results/{sample}.zotumap.txt"
+    log:
+        "logs/{sample}.zotutable.log"
+    shell:
+        "usearch -otutab {input.r1} -zotus {input.r2} -otutabout {output.o1} -mapout {output.o2}"
+
+rule alignment:
+    input:
+        "results/{sample}.zotus.fasta"
+    output:
+        "results/{sample}.otualign.aln"
+    log:
+        "logs/{sample}.alignment.log"
+    shell:
+        "usearch -usearch_global {input} -db rdp_16s_v16.fa -id 0.9 -strand both -alnout {output}"
+
+#rule sintax:
+#    input:
+#        "il-fastq/{sample}_merged.fastq"
+#    output:
+#        "results/{sample}.sintax_tabbed.txt"
+#    log:
+#        "logs/{sample}.sintaxtab.log"
+#    shell:
+#        "usearch -sintax {input} -db rdp_16s_v16.fa -tabbedout {output} -strand both -sintax_cutoff 0.$
+
+#rule sintax_summary:
+#    input:
+#        u1="results/{sample}.sintax_tabbed.txt",
+#        u2="results/{sample}.otutable.txt"
+#    output:
+#        "results/{sample}.sinstax_summary.txt"
+#    log:
+#        "logs/{sample}.sintaxsum.log"
+#    shell:
+#        "usearch -sintax_summary {input.u1} -otutabin {input.u2} -output {output} -rank p"
+
+#Change files around to fit
+
+rule cut_files:
+    input:
+        "results/{sample}.zotumap.txt"
+    output:
+        "results/{sample}.otunumber.txt"
+    shell:
+        "cut -f2 {input} | sort | uniq > {output}"
+
+rule match:
+    input:
+        outnum="results/{sample}.otunumber.txt",
+        aln="results/{sample}.otualign.aln"
+    output:
+        "results/{sample}.queryoutput.txt"
+    shell:
+        "grep -A1 -f {input.outnum} {input.aln} > {output}"
+
+rule nice_output:
+    input:
+        "results/{sample}.queryoutput.txt"
+    output:
+        "results/{sample}.taxtable.txt"
+    shell:
+        "grep -B1 'Target ' {input} > {output}"
+
+rule merge_lines:
+    input:
+        "results/{sample}.taxtable.txt"
+    output:
+       touch("results/{sample}.csv")
+    shell:
+        "python merge_lines.py {input}"
+
+rule add_counts:
+    input:
+        "results/{sample}.zotumap.txt"
+    output:
+        "results/{sample}_counts.txt"
+    shell:
+        "cut -f2 {input} | sort | uniq -c | sort -k1,1rn > {output}"
+
+#Change all the files to be workable
+rule replacing:
+# replace leading spaces with tabs, flip column 1 and column 2 with awk, and sort
+    input:
+        "results/{sample}_counts.txt"
+    output:
+        "results/{sample}_counts.sorted.txt"
+    shell:
+        "perl -pe 's/(^\s+)//' < {input} | awk ' {{ t = $1; $1 = $2; $2 = t; print; }} ' | sort > {output$
+rule sorting:
+# replace commas with tabs and sort
+    input:
+    input:
+        "results/{sample}.taxtable.csv"
+    output:
+        "results/{sample}.sorted.taxtable.txt"
+    shell:
+        "perl -pe 's/,/\t/g' < {input} | sort > {output}"
+
+rule joining:
+# just join the first two files based on first column, add tabs,
+# and sort by number of reads (reverse order and human readable)
+    input:
+        r1="results/{sample}_counts.sorted.txt",
+        r2="results/{sample}.sorted.taxtable.txt"
+    output:
+        "results/{sample}.taxa_counts.txt"
+    shell:
+        "join --nocheck-order {input.r1} {input.r2} | tr ' ' '\t' | sort -hr -k 2 > {output}"
