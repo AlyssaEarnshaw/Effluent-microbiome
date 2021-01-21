@@ -68,8 +68,6 @@ rule all:
 #        "il-fastq/{sample}_joined.fastqjoin"
 #    params:
 #        "il-fastq/{sample}_joined.fastq"
-#    log:
-#        "logs/{sample}.merged.log"
 #    shell:
 #        "fastq-join {input.r1} {input.r2} -o {params}"
 
@@ -86,8 +84,6 @@ rule filter:
         "il-fastq/{sample}_joined.fastq"
     output:
         "results/{sample}.filtered.fasta"
-    log:
-        "logs/{sample}.filtered.log"
     shell:
         "usearch -fastq_filter {input} -fastq_maxee 1.0 -fastaout {output}"
 
@@ -96,8 +92,6 @@ rule find_uniques:
         "results/{sample}.filtered.fasta"
    output:
         "results/{sample}.unique.fasta"
-    log:
-        "logs/{sample}.unique.log"
     shell:
         "usearch -fastx_uniques {input} -fastaout {output} -sizeout -relabel Uniq"
 
@@ -106,8 +100,6 @@ rule find_uniques:
 #        "results/{sample}.unique.fasta"
 #    output:
 #        "results/{sample}.clustered.fasta"
-#    log:
-#        "logs/{sample}.clustered.log"
 #    shell:
 #        "usearch -cluster_otus {input} -otus {output} -relabel Otu"
 
@@ -128,8 +120,6 @@ rule zotus:
 #    output:
 #        o1="results/{sample}.otutable.txt",
 #        o2="results/{sample}.map.txt"
-#    log:
-#        "logs/{sample}.otutable.log"
 #    shell:
 #        "usearch -otutab {input.r1} -otus {input.r2} -otutabout {output.o1} -mapout {output.o2}"
 
@@ -140,8 +130,6 @@ rule make_zotu_table:
     output:
         o1="results/{sample}.zotutable.txt",
         o2="results/{sample}.zotumap.txt"
-    log:
-        "logs/{sample}.zotutable.log"
     shell:
         "usearch -otutab {input.r1} -zotus {input.r2} -otutabout {output.o1} -mapout {output.o2}"
 
@@ -150,8 +138,6 @@ rule alignment:
         "results/{sample}.zotus.fasta"
     output:
         "results/{sample}.otualign.aln"
-    log:
-        "logs/{sample}.alignment.log"
     shell:
         "usearch -usearch_global {input} -db rdp_16s_v16.fa -id 0.9 -strand both -alnout {output}"
 
@@ -160,8 +146,6 @@ rule alignment:
 #        "il-fastq/{sample}_merged.fastq"
 #    output:
 #        "results/{sample}.sintax_tabbed.txt"
-#    log:
-#        "logs/{sample}.sintaxtab.log"
 #    shell:
 #        "usearch -sintax {input} -db rdp_16s_v16.fa -tabbedout {output} -strand both -sintax_cutoff 0.$
 
@@ -171,8 +155,6 @@ rule alignment:
 #        u2="results/{sample}.otutable.txt"
 #    output:
 #        "results/{sample}.sinstax_summary.txt"
-#    log:
-#        "logs/{sample}.sintaxsum.log"
 #    shell:
 #        "usearch -sintax_summary {input.u1} -otutabin {input.u2} -output {output} -rank p"
 
@@ -228,6 +210,7 @@ rule replacing:
         "results/{sample}_counts.sorted.txt"
     shell:
         "perl -pe 's/(^\s+)//' < {input} | awk ' {{ t = $1; $1 = $2; $2 = t; print; }} ' | sort > {output$
+
 rule sorting:
 # replace commas with tabs and sort
     input:
