@@ -1,7 +1,7 @@
-<h1> **### A file to place miscellaneous R commands**
+<h1> *A file to place miscellaneous R commands*
 
 
-<h2> **##To get classified read counts from the dataframe**
+<h2> *To get classified read counts from the dataframe*
 library(tidyverse)
 
 #Check this imports zotus not otus
@@ -16,7 +16,7 @@ Reads_total<-lapply(taxa_dataframe, function(z) sum(z$Read_Count))
 
 
 
-<h2> **## Make graphs **
+<h2> *Make graphs*
 library(readxl)
 library(RColorBrewer)
 library(tidyverse)
