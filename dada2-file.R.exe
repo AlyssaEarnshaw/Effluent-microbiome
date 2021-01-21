@@ -1,0 +1,100 @@
+	#########################################################
+	## see http://benjjneb.github.io/dada2/tutorial.html
+	## September 25 2020
+  ## 
+  ## Made to be run in bash
+  ## Set up with conda
+  ##
+  ## conda activate dada2-v1.14
+  ## Rscript dada2-file.R.exe
+  ##
+  ## Goes through to phyloseq to create graphs that can be downloaded
+	#########################################################
+	​
+	library(dada2)
+	library(phyloseq)
+	library(ggplot2)
+	library(Biostrings)
+	​
+	getN <- function(x) sum(getUniques(x))
+	​
+	## get files
+	path <- " "
+	fnFs <- sort(list.files(path, pattern="_joined.fastq", full.names = TRUE))
+	​
+	## plot errors
+	lenfn<-length(fnFs)
+	pdf(file=paste(path,"/","qual.pdf",sep=""),width=10,height=10) 
+	plotQualityProfile(fnFs[1:lenfs])
+	dev.off()
+	​
+	## make sample names (careful on parsing)
+	sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+	​
+	## make filter files
+	filtFs <- file.path(path, "filtered", paste0(sample.names, "_filt.fastq.gz"))
+	names(filtFs) <- sample.names
+	​
+	## Filters and trims an input fastq file(s) based on user-definable criteria
+	## removed truncLen=c(240,160) argument
+	out <- filterAndTrim(fnFs, filtFs, truncLen=c(240),
+			maxN=0, maxEE=c(2), truncQ=2, rm.phix=TRUE, 
+			compress=TRUE, multithread=TRUE)
+	#head(out)
+	​
+	## Learns the error rates from an input list
+	errF <- learnErrors(filtFs, multithread=TRUE)
+	​
+	pdf(file=paste(path,"/","error_rates.pdf",sep=""),width=10,height=10)
+	plotErrors(errF, nominalQ=TRUE)
+	dev.off()
+	​
+	#########################################################
+	## takes as input dereplicated amplicon sequencing reads and returns the
+	## inferred composition of the sample (or samples). Put another way, dada
+	## removes all sequencing errors to reveal the members of the sequenced community
+	#########################################################
+	dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+	dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+	​
+	seqtab <- makeSequenceTable(dadaFs)
+	dim(seqtab)
+	table(nchar(getSequences(seqtab)))
+	
+	## remove chimaeras
+	seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+	dim(seqtab.nochim)
+	sum(seqtab.nochim)/sum(seqtab)
+	​
+	## follow the effects iof filtering steps on read numbers
+	track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
+	colnames(track) <- c("input", "filtered", "denoisedF", "nonchim")
+	rownames(track) <- sample.names
+	#track
+	
+	## get the taxa assignments
+	taxa <- assignTaxonomy(seqtab.nochim, "/scratch/alyssa/Illumina-sequencing/il-fastq/silva_nr_v138_train_set.fa.gz", multithread=TRUE)
+	​
+	#########################################################
+	## do some plotting
+	#########################################################
+	samples.out <- rownames(seqtab.nochim)
+	​
+	ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), tax_table(taxa))
+	dna​ <-Biostrings::DNAStringSet(taxa_names(ps)) 
+	names(dna)<-taxa_names(ps)  
+	ps<-merge_phyloseq(ps,dna)
+	taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+	
+	pdf(file=paste(path,"/","plotting.pdf",sep=""),width=10,height=10)
+	 num.taxa <- 20
+	top.taxa <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:num.taxa]
+	ps.top.taxa <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+	ps.top.taxa <- prune_taxa(top.taxa, ps.top.taxa)
+	plot_bar(ps.top.taxa, fill="Genus")
+	plot_heatmap(ps.top.taxa, method=NULL, taxa.label="Genus")
+	​plot_bar(ps, fill="Genus")
+	plot_heatmap(ps, method=NULL, taxa.label="Genus")
+	 dev.off()
+	
+	 write.csv(taxa,"taxa.csv")
