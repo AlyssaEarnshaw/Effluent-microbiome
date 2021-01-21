@@ -1,0 +1,17 @@
+## Used to run a CAP analysis based on qPCR MAP values
+
+#install.packages("BiodiversityR")
+library(BiodiversityR)
+library(vegan)
+
+csvfile<-read.csv("LIC_cap_test.csv")
+csvfile<-(t(csvfile)) # transpose - so species are columns and samples are rows
+colnames(csvfile)<-csvfile[1,] #name the columns the species
+csvfile<-as.data.frame(csvfile[2:12,]) #remove the first row (which had the names in it)
+capdat<-csvfile[,5:211] # make a separate object containing the species data
+csvfile$MAP<-as.numeric(csvfile$MAP) # set MAP to numeric
+csvfile$MapPres<-as.factor(ifelse(csvfile$MAP>40, "absent","present")) # Split map into categorical variable
+capdat<-as.data.frame(apply(capdat,2,as.numeric)) #make all values in the capdat object numeric
+cap<-CAPdiscrim(capdat~MapPres, data=alyssa, #run CAPdiscrim function
+dist="bray")plot1 <- ordiplot(cap, type="none") #make plot
+ordisymbol(plot1, alyssa, "MapPres", legend=TRUE) #plot plot with values
