@@ -1,0 +1,28 @@
+### This is used in R after usearch.Snakemake
+### It makes a csv file that shows all of the classifications
+
+taxa_counts_list<-mget(ls(pattern="taxa_counts"))
+all_taxa_counts<-do.call(rbind, taxa_counts_list)
+
+colnames(all_taxa_counts)<-c("OTU", "Read_Count", "Kingdom", "Phylum", "Class", "Order", "Genus")
+taxa_counts_list<-lapply(taxa_counts_list, setNames, colnames)
+#View(taxa_counts_list)
+
+library(tidyverse)
+taxa_files<-all_taxa_counts %>%
++     group_by(Genus) %>%
++     summarise(Read_Count=sum(Read_Count))
+
+GroupingFunction <- function(DF) {
++     DF %>%
++     group_by(Genus) %>% 
++     summarise(Read_Count = sum(Read_Count),
++     orig.df = unique(Genus))
++      }
+taxalist <- map(taxa_counts_list, GroupingFunction)
+
+dftogether<-bind_rows(taxalist, .id = "orig.df")
+taxaspread<-dftogether %>% spread(key=orig.df,value = Read_Count)
+taxaspread[is.na(taxaspread)] <- 0
+
+write.csv(taxaspread, "LIC_bacteria_table.csv")
