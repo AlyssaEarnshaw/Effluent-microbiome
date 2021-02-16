@@ -1,0 +1,96 @@
+##A file to place miscellaneous R commands
+
+#Import dependencies
+library(tidyverse)
+library(readxl)
+library(RColorBrewer)
+library(tidyverse)
+library(factoextra)
+library(ape)
+library(vegan)
+library(ggrepel)
+library(ggplot2)
+
+
+#Check this imports zotus not otus
+
+files<-list.files(path="./",pattern="*taxa_counts.txt")
+taxa_dataframe<-lapply(files,read.delim, header=FALSE)
+names(taxa_dataframe)<-files 
+
+#Dataframes
+
+taxa_dataframe<-lapply(taxa_dataframe, setNames, paste0(c("OTU", "Read_Count", "Kingdom", "Phylum", "Class", "Order", "Genus")))
+Reads_dataframe<-lapply(taxa_dataframe,function(y) {y %>% group_by(Genus) %>% summarise(Read_Count=sum(Read_Count))})
+Reads_total<-lapply(taxa_dataframe, function(z) sum(z$Read_Count))
+
+
+##Make graphs
+
+#Read in and set up
+#Change sheet name
+
+freq_sheet <- read_excel("_freq.xlsx")
+freq<-as.matrix(freq_sheet[-1])
+row.names(freq)<-freq_sheet$Genus
+colnames(freq)=gsub(pattern = ".16S.il.2019.12.19.taxa_counts",replacement = " ",x=colnames(freq))
+
+#Heatmap graph
+
+freqheatmap <- heatmap(freq, Rowv=NA, Colv=NA, col =brewer.pal(9,"Blues"), scale="column", margins=c(9,2),cexCol = 0.65, main = "Heatmap of frequency of genus in cow samples")
+
+#PCA graph
+
+freqdf<-as.data.frame(freq)
+freqtb<-as_tibble(freqdf)
+tfreqtb<-t(freqdf)
+
+#Change the column numbers
+
+freq.pca<-prcomp(tfreqtb[c(2:6),])
+fviz_pca_ind(freq.pca,
+   col.var = "contrib", # Color by contributions to the PC
+   gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+   repel = TRUE,  select.var = list(contrib=10)   # Avoid text overlapping
+
+#PCoA graph
+
+freqtable<-read.csv("./LIC_all_frequencies.csv")
+colnames(freqtable)=gsub(pattern = ".taxa_counts",replacement = "",x=colnames(freqtable))
+distmat<-vegan::vegdist(t(freqtable[2:67]))
+dis_pcoa<-pcoa(distmat) 
+vectors<-as.data.frame(dis_pcoa$vectors)
+p1<-ggplot(vectors3, aes(x=Axis.1, y=Axis.2,col=as.factor(rownames(vectors3)))) + geom_point(size=4,shape=16)
+   +geom_label_repel(aes(label=rownames(vectors3),hjust=0, vjust=0),cex=5) + theme(legend.position = "none") + theme(text = element_text(size = 15))
+   + theme(axis.text.x = element_text(size=10),axis.text.y = element_text(size=10, angle=90))
+plot(p1)
+
+#Diversities and histogram
+
+tbls<-taxaspread
+rownames(tbls)<-taxaspread$Genus
+tbls<-tbls[,-1]
+transposetaxa<-as.data.frame(t(tbls))
+colnames(transposetaxa)[colnames(transposetaxa) == 'V1'] <- 'Unclassified'
+
+simpson<-diversity(transposetaxa,index = "simpson")
+shannon<-diversity(transposetaxa)
+par(mfrow = c(1, 2)) 
+hist(simpson)
+hist(shannon)
+
+
+#Canonical Analysis of Principal coordinates
+
+mapcap<-read.csv("./map_for_cap.csv")
+mapcap<-(t(mapcap)) 
+colnames(mapcap)<-mapcap[1,] 
+mapcap<-as.data.frame(mapcap[2:66,]) #or however many columns there are (minus the first which contains genus)
+capdat<-mapcap[,3:439] #get genera only
+mapcap$MAP<-as.numeric(mapcap$MAP)
+mapcap$MapPres<-as.factor(ifelse(mapcap$MAP>40, "absent", (ifelse(mapcap$MAP==0, "unknown", "present"))))
+capdat<-as.data.frame(apply(capdat,2,as.numeric))
+cap<-CAPdiscrim(capdat~MapPres, data=mapcap, #run CAPdiscrim function
+  + dist="bray")
+plot1 <- ordiplot(cap, type="none")
+ordisymbol(plot1, mapcap, "MapPres", legend=TRUE)
