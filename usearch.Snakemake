@@ -53,13 +53,6 @@ rule all:
         expand("results/{sample}.sorted.taxtable.txt", sample=config["SAMPLE"]),
         expand("results/{sample}.taxa_counts.txt", sample=config["SAMPLE"]),
 
-#        expand("results/{sample}.otutable.txt", sample=config["SAMPLE"]),
-#        expand("results/{sample}.map.txt", sample=config["SAMPLE"]),
-#        expand("results/{sample}.clustered.fasta", sample=config["SAMPLE"]),
-#        expand("results/{sample}.sintax_tabbed.txt", sample=config["SAMPLE"]),
-#        expand("results/{sample}.sinstax_summary.txt", sample=config["SAMPLE"]),
-
-#Rule merge needs to be run as a stand-alone command outside the snakemake. 
 #rule merge:
 #    input:
 #        r1="il-fastq/{sample}_R1.fastq",
@@ -95,14 +88,6 @@ rule find_uniques:
     shell:
         "usearch -fastx_uniques {input} -fastaout {output} -sizeout -relabel Uniq"
 
-#rule cluster_otus:
-#    input:
-#        "results/{sample}.unique.fasta"
-#    output:
-#        "results/{sample}.clustered.fasta"
-#    shell:
-#        "usearch -cluster_otus {input} -otus {output} -relabel Otu"
-
 rule zotus:
     input:
         "results/{sample}.unique.fasta"
@@ -111,17 +96,7 @@ rule zotus:
     log:
         "logs/{sample}.zotus.log"
     shell:
-        "usearch -unoise3 {input} -zotus {output}"
-
-#rule make_otu_table:
-#    input:
-#        r1="il-fastq/{sample}_merged.fastq",
-#        r2="results/{sample}.clustered.fasta"
-#    output:
-#        o1="results/{sample}.otutable.txt",
-#        o2="results/{sample}.map.txt"
-#    shell:
-#        "usearch -otutab {input.r1} -otus {input.r2} -otutabout {output.o1} -mapout {output.o2}"
+        "usearch -unoise3 {input} -zotus {output} -minsize 5"
 
 rule make_zotu_table:
     input:
@@ -140,23 +115,6 @@ rule alignment:
         "results/{sample}.otualign.aln"
     shell:
         "usearch -usearch_global {input} -db rdp_16s_v16.fa -id 0.9 -strand both -alnout {output}"
-
-#rule sintax:
-#    input:
-#        "il-fastq/{sample}_merged.fastq"
-#    output:
-#        "results/{sample}.sintax_tabbed.txt"
-#    shell:
-#        "usearch -sintax {input} -db rdp_16s_v16.fa -tabbedout {output} -strand both -sintax_cutoff 0.$
-
-#rule sintax_summary:
-#    input:
-#        u1="results/{sample}.sintax_tabbed.txt",
-#        u2="results/{sample}.otutable.txt"
-#    output:
-#        "results/{sample}.sinstax_summary.txt"
-#    shell:
-#        "usearch -sintax_summary {input.u1} -otutabin {input.u2} -output {output} -rank p"
 
 #Change files around to fit
 
